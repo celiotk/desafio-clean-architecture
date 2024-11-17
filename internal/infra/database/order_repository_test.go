@@ -17,14 +17,21 @@ type OrderRepositoryTestSuite struct {
 }
 
 func (suite *OrderRepositoryTestSuite) SetupSuite() {
+	println("Setting up the suite...")
 	db, err := sql.Open("sqlite3", ":memory:")
 	suite.NoError(err)
 	db.Exec("CREATE TABLE orders (id varchar(255) NOT NULL, price float NOT NULL, tax float NOT NULL, final_price float NOT NULL, PRIMARY KEY (id))")
 	suite.Db = db
 }
 
-func (suite *OrderRepositoryTestSuite) TearDownTest() {
+func (suite *OrderRepositoryTestSuite) TearDownSuite() {
+	println("Tearing down the suite...")
 	suite.Db.Close()
+}
+
+func (suite *OrderRepositoryTestSuite) TearDownTest() {
+	println("Tearing down the test...")
+	suite.Db.Exec("DELETE FROM orders")
 }
 
 func TestSuite(t *testing.T) {
@@ -32,6 +39,7 @@ func TestSuite(t *testing.T) {
 }
 
 func (suite *OrderRepositoryTestSuite) TestGivenAnOrder_WhenSave_ThenShouldSaveOrder() {
+	println("Running: TestGivenAnOrder_WhenSave_ThenShouldSaveOrder")
 	order, err := entity.NewOrder("123", 10.0, 2.0)
 	suite.NoError(err)
 	suite.NoError(order.CalculateFinalPrice())
@@ -48,4 +56,22 @@ func (suite *OrderRepositoryTestSuite) TestGivenAnOrder_WhenSave_ThenShouldSaveO
 	suite.Equal(order.Price, orderResult.Price)
 	suite.Equal(order.Tax, orderResult.Tax)
 	suite.Equal(order.FinalPrice, orderResult.FinalPrice)
+}
+
+func (suite *OrderRepositoryTestSuite) TestGivenAnOrder_WhenGetTotal_ThenShouldReturnTotal() {
+	println("Running: TestGivenAnOrder_WhenGetTotal_ThenShouldReturnTotal")
+	repo := NewOrderRepository(suite.Db)
+	total, err := repo.GetTotal()
+	suite.NoError(err)
+	suite.Equal(0, total)
+
+	order, err := entity.NewOrder("123", 10.0, 2.0)
+	suite.NoError(err)
+	suite.NoError(order.CalculateFinalPrice())
+	err = repo.Save(order)
+	suite.NoError(err)
+
+	total, err = repo.GetTotal()
+	suite.NoError(err)
+	suite.Equal(1, total)
 }
