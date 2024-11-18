@@ -3,7 +3,7 @@ package database
 import (
 	"database/sql"
 
-	"github.com/devfullcycle/20-CleanArch/internal/entity"
+	"github.com/celiotk/desafio-clean-architecture/internal/entity"
 )
 
 type OrderRepository struct {
