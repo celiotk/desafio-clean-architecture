@@ -1,4 +1,4 @@
-version: '3'
+version: '3.3'
 
 services:
   mysql:
@@ -11,6 +11,11 @@ services:
       MYSQL_PASSWORD: root
     ports:
       - 3306:3306
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - .docker/mysql:/var/lib/mysql
 
@@ -24,3 +29,27 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+
+  migration:
+    image: migrate/migrate:v4.14.1
+    container_name: migrate_service
+    command:
+      [
+        "-path","/migrations",
+        "-database","mysql://root:root@tcp(mysql:3306)/orders",
+        "up"
+      ]
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./db/migrations:/migrations
+  
+  goapp:
+    build: .
+    ports:
+      - 8080:8080
+      - 8000:8000
+      - 50051:50051
+    depends_on:
+      - rabbitmq

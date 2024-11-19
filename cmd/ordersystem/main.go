@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 
 	graphql_handler "github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -35,7 +36,7 @@ func main() {
 	}
 	defer db.Close()
 
-	rabbitMQChannel := getRabbitMQChannel(configs.RabbitMQPort)
+	rabbitMQChannel := getRabbitMQChannel(configs.RabbitMQHost, configs.RabbitMQPort)
 
 	eventDispatcher := events.NewEventDispatcher()
 	eventDispatcher.Register("OrderCreated", &handler.OrderCreatedHandler{
@@ -75,9 +76,19 @@ func main() {
 	http.ListenAndServe(":"+configs.GraphQLServerPort, nil)
 }
 
-func getRabbitMQChannel(port string) *amqp.Channel {
+func getRabbitMQChannel(host string, port string) *amqp.Channel {
 	fmt.Println("Connecting to RabbitMQ on port", port)
-	conn, err := amqp.Dial(fmt.Sprintf("amqp://guest:guest@localhost:%s/", port))
+	var conn *amqp.Connection
+	var err error
+	for attempt := 0; attempt < 20; attempt++ {
+		conn, err = amqp.Dial(fmt.Sprintf("amqp://guest:guest@%s:%s/", host, port))
+		if err == nil {
+			fmt.Println("Connected to RabbitMQ")
+			break
+		}
+		fmt.Println("Failed to connect to RabbitMQ. Retrying in 5 seconds")
+		time.Sleep(5 * time.Second)
+	}
 	if err != nil {
 		panic(err)
 	}
